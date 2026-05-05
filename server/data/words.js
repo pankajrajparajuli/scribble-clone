@@ -1,0 +1,1 @@
+module.exports = ["apple", "car", "house", "dog", "tree"];
