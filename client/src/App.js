@@ -5,38 +5,50 @@ function App() {
   const canvasRef = useRef(null);
   const socketRef = useRef(null);
   const prevPos = useRef({ x: 0, y: 0 });
-
+  const [name, setName] = useState("");
+  const [players, setPlayers] = useState([]);
   const [drawing, setDrawing] = useState(false);
   const [roomId, setRoomId] = useState("");
   const [joined, setJoined] = useState(false);
 
   useEffect(() => {
-    socketRef.current = io("http://localhost:5001", {
-      transports: ["websocket", "polling"],
-    });
+  socketRef.current = io("http://localhost:5001");
 
-    const socket = socketRef.current;
+  const socket = socketRef.current;
 
-    socket.on("connect", () => {
-      console.log("Connected:", socket.id);
-    });
+  socket.on("connect", () => {
+    console.log("✅ Connected:", socket.id);
+  });
 
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
+  socket.on("players", (playerList) => {
+    console.log("PLAYERS RECEIVED:", playerList); // 👈 DEBUG
+    setPlayers(playerList);
+  });
 
-    socket.on("draw", ({ x0, y0, x1, y1 }) => {
-      drawLine(ctx, x0, y0, x1, y1);
-    });
+  const canvas = canvasRef.current;
+  const ctx = canvas.getContext("2d");
 
-    return () => socket.disconnect();
+  socket.on("draw", ({ x0, y0, x1, y1 }) => {
+    drawLine(ctx, x0, y0, x1, y1);
+  });
+
+  return () => {
+    socket.disconnect();
+  };
   }, []);
 
   const joinRoom = () => {
-    if (!roomId) return;
+  if (!roomId || !name) return;
 
-    socketRef.current.emit("join-room", roomId);
-    setJoined(true);
-  };
+  console.log("JOINING:", name, roomId); // 👈 DEBUG
+
+  socketRef.current.emit("join-room", {
+    roomId,
+    name,
+  });
+
+  setJoined(true);
+};
 
   const drawLine = (ctx, x0, y0, x1, y1) => {
     ctx.beginPath();
@@ -91,34 +103,50 @@ function App() {
   };
 
   return (
-    <div style={{ textAlign: "center" }}>
-      <h2>Scribble Clone (Rooms)</h2>
+  <div style={{ textAlign: "center" }}>
+    <h2>Scribble Clone (Rooms)</h2>
 
-      {!joined ? (
-        <div>
-          <input
-            placeholder="Enter room ID"
-            value={roomId}
-            onChange={(e) => setRoomId(e.target.value)}
-          />
-          <button onClick={joinRoom}>Join Room</button>
-        </div>
-      ) : (
+    {!joined ? (
+      <div>
+        <input
+          placeholder="Enter your name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <br /><br />
+        <input
+          placeholder="Enter room ID"
+          value={roomId}
+          onChange={(e) => setRoomId(e.target.value)}
+        />
+        <br /><br />
+        <button onClick={joinRoom}>Join Room</button>
+      </div>
+    ) : (
+      <div>
         <p>Joined room: {roomId}</p>
-      )}
 
-      <canvas
-        ref={canvasRef}
-        width={800}
-        height={500}
-        style={{ border: "2px solid black", marginTop: "10px" }}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onMouseMove={handleMouseMove}
-      />
-    </div>
-  );
-}
+        {/* Players list */}
+        <h3>Players</h3>
+        <ul style={{ listStyle: "none", padding: 0 }}>
+          {players.map((p) => (
+            <li key={p.id}>{p.name}</li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    <canvas
+      ref={canvasRef}
+      width={800}
+      height={500}
+      style={{ border: "2px solid black", marginTop: "10px" }}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onMouseMove={handleMouseMove}
+    />
+  </div>
+);}
 
 export default App;
